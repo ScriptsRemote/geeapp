@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Time Series Analysis - Google Earth Engine</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Topbar */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #2c3e50;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .topbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+            padding: 0 20px;
+        }
+        
+        .topbar-left h5 {
+            margin: 0;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .topbar-right {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .topbar-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .topbar-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        #map {
+            height: calc(100vh - 60px);
+            width: 100%;
+            margin-top: 60px;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            right: -400px;
+            width: 400px;
+            height: calc(100vh - 60px);
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .sidebar.open {
+            right: 0;
+        }
+        
+        .chart-modal {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 600px;
+            height: 500px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1001;
+            display: none;
+            overflow: hidden;
+            max-height: calc(100vh - 100px);
+        }
+        
+        .chart-modal.open {
+            display: block;
+        }
+        
+        /* Modal centralizado para disclaimer */
+        #disclaimerModal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            height: 80%;
+            max-height: calc(100vh - 120px);
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 2000;
+            display: none;
+            overflow: hidden;
+        }
+        
+        #disclaimerModal.open {
+            display: block;
+        }
+        
+        /* Overlay de fundo para disclaimer */
+        .disclaimer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+        }
+        
+        .disclaimer-overlay.show {
+            display: block;
+        }
+        
+        /* Responsividade para disclaimer */
+        @media (max-width: 768px) {
+            #disclaimerModal {
+                width: 95%;
+                height: 90%;
+                max-height: 600px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #disclaimerModal {
+                width: 98%;
+                height: 95%;
+                max-height: 700px;
+                border-radius: 5px;
+            }
+            
+            .chart-header h6 {
+                font-size: 14px;
+            }
+            
+            .chart-content {
+                padding: 10px;
+            }
+            
+            /* Responsividade da topbar */
+            .topbar-content {
+                padding: 0 10px;
+            }
+            
+            .topbar-left h5 {
+                font-size: 16px;
+            }
+            
+            .topbar-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+        
+        .chart-modal.open {
+            display: block;
+        }
+        
+        .chart-header {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chart-content {
+            padding: 15px;
+            height: calc(100% - 50px);
+            overflow: hidden;
+        }
+        
+        .sidebar-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-content {
+            padding: 20px;
+        }
+        
+        
+        /* Mover controle de layers para a esquerda e garantir visibilidade */
+        .leaflet-control-layers {
+            right: auto !important;
+            left: 10px !important;
+            z-index: 1002 !important;
+            position: relative !important;
+        }
+        
+        /* Garantir que o controle de layers fique acima do sidebar */
+        .leaflet-control-layers-expanded {
+            z-index: 1002 !important;
+        }
+        
+        /* Forçar posicionamento do controle de layers */
+        .leaflet-control-container .leaflet-top.leaflet-left {
+            z-index: 1002 !important;
+        }
+        
+        /* Garantir que o controle de layers não seja afetado pelo sidebar */
+        .leaflet-control-layers-toggle {
+            z-index: 1002 !important;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            border-color: #3498db;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            border-color: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+            border-color: #229954;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner-border {
+            color: #3498db;
+        }
+        
+        .image-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .image-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .image-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .image-item.selected {
+            background-color: #e3f2fd;
+            border-left: 3px solid #3498db;
+        }
+        
+        .chart-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .layers-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .layer-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .layer-item:last-child {
+            border-bottom: none;
+        }
+
+        .layer-item .form-check {
+            margin: 0;
+        }
+
+        .layer-item .form-check-label {
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .layer-item .form-check-input {
+            margin-right: 8px;
+        }
+        
+        .stats-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stats-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        
+        .roi-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .roi-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .roi-item.selected {
+            background-color: #e3f2fd;
+            border-left: 3px solid #3498db;
+        }
+        
+        .roi-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        /* Estilos para botões de mapa base */
+        .btn.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .btn.active:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-content">
+            <div class="topbar-left">
+                <h5><i class="fas fa-satellite"></i> Time Series Analysis</h5>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-btn" id="toggleSidebar">
+                    <i class="fas fa-cog"></i> Controles
+                </button>
+                <button class="topbar-btn" id="showInfo">
+                    <i class="fas fa-info-circle"></i> Sobre
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mapa -->
+    <div id="map"></div>
+    
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h5><i class="fas fa-satellite"></i> Time Series Analysis</h5>
+            <button class="btn btn-sm btn-outline-light" id="closeSidebar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="sidebar-content">
+            <!-- Seção de Mapas Base -->
+            <div class="stats-card">
+                <h6><i class="fas fa-map"></i> Mapas Base</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="changeBaseMap('osm')">
+                        <i class="fas fa-globe"></i> OpenStreetMap
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="changeBaseMap('cartodb')">
+                        <i class="fas fa-map-marked-alt"></i> CartoDB Light
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="changeBaseMap('satellite')">
+                        <i class="fas fa-satellite"></i> Satélite
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Seção de ROI -->
+            <div class="stats-card">
+                <h6><i class="fas fa-draw-polygon"></i> Região de Interesse</h6>
+                <p class="text-muted small">Desenhe uma área no mapa ou faça upload de um arquivo</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" id="clearROI">
+                        <i class="fas fa-trash"></i> Limpar ROI
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="showAddROIModal()">
+                        <i class="fas fa-save"></i> Salvar ROI
+                    </button>
+                    <input type="file" class="form-control form-control-sm" id="uploadROI" accept=".geojson,.json">
+                    <small class="text-muted">Formatos suportados: GeoJSON, JSON</small>
+                </div>
+            </div>
+            
+            <!-- Indicador de Área em Tempo Real -->
+            <div class="stats-card" id="areaIndicator" style="display: none;">
+                <h6><i class="fas fa-ruler"></i> Área da ROI</h6>
+                <div class="text-center">
+                    <div class="stats-value" id="currentArea">0.00</div>
+                    <div class="stats-label">hectares</div>
+                </div>
+            </div>
+            
+            <!-- Informações da ROI Selecionada -->
+            <div class="stats-card" id="roiInfo" style="display: none;">
+                <!-- Conteúdo dinâmico -->
+            </div>
+            
+            <!-- Lista de ROIs Salvas -->
+            <div class="stats-card">
+                <h6><i class="fas fa-list"></i> ROIs Salvas</h6>
+                <div class="roi-list" id="roiList" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Conteúdo dinâmico -->
+                </div>
+            </div>
+            
+            <!-- Controle de Layers (após carregar imagens) -->
+            <div class="stats-card" id="layersCard" style="display: none;">
+                <h6><i class="fas fa-layer-group"></i> Camadas do Mapa</h6>
+                <div id="layersControl">
+                    <!-- Controle de layers será movido aqui dinamicamente -->
+                </div>
+            </div>
+            
+            <!-- Malha Amostral -->
+            <div class="stats-card" id="sampleGridCard">
+                <h6><i class="fas fa-th"></i> Malha Amostral</h6>
+                
+                <!-- Controle de Espaçamento -->
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-ruler"></i> Espaçamento da Malha
+                    </label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" class="form-range" id="gridSpacing" 
+                               min="50" max="500" value="100" step="50">
+                        <span class="badge bg-primary" id="spacingValue">100m</span>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        <span id="spacingInfo">Aproximadamente 1 hectare (100m x 100m)</span>
+                    </small>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted" id="sampleGridInfo">Nenhuma malha criada</small>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning btn-sm" id="generateSampleGrid">
+                        <i class="fas fa-th"></i> Gerar Malha Amostral
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" id="extractPointStats">
+                        <i class="fas fa-download"></i> Extrair Estatísticas por Pontos
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" id="viewPointData">
+                        <i class="fas fa-table"></i> Visualizar Dados
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" id="clearSampleGrid">
+                        <i class="fas fa-trash"></i> Limpar Malha
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Seção de Período -->
+            <div class="stats-card">
+                <h6><i class="fas fa-calendar"></i> Período de Análise</h6>
+                <div class="form-group">
+                    <label class="form-label">Data Inicial</label>
+                    <input type="date" class="form-control" id="startDate" value="2024-04-01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data Final</label>
+                    <input type="date" class="form-control" id="endDate" value="2024-10-01">
+                </div>
+                <button class="btn btn-primary btn-sm w-100" id="loadImages">
+                    <i class="fas fa-search"></i> Carregar Imagens
+                </button>
+            </div>
+            
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+                <p class="mt-2">Processando no Google Earth Engine...</p>
+            </div>
+            
+            <!-- Lista de Imagens -->
+            <div class="stats-card" id="imagesCard" style="display: none;">
+                <h6><i class="fas fa-images"></i> Imagens Disponíveis</h6>
+                <div class="image-list" id="imageList"></div>
+            </div>
+            
+            <!-- Visualizações -->
+            <div class="stats-card" id="visualizationCard" style="display: none;">
+                <h6><i class="fas fa-eye"></i> Visualizações</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-success btn-sm" id="showNDVI">
+                        <i class="fas fa-leaf"></i> NDVI
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" id="showRGB">
+                        <i class="fas fa-palette"></i> RGB Colorido
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" id="showEVI">
+                        <i class="fas fa-seedling"></i> EVI
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button class="btn btn-outline-success btn-sm w-100" id="downloadTIFF">
+                        <i class="fas fa-download"></i> Download TIFF
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Estatísticas -->
+            <div class="stats-card" id="statsCard" style="display: none;">
+                <h6><i class="fas fa-chart-bar"></i> Estatísticas da ROI</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="stats-value" id="ndviMean">-</div>
+                            <div class="stats-label">NDVI Médio</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="stats-value" id="eviMean">-</div>
+                            <div class="stats-label">EVI Médio</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-outline-primary btn-sm w-100" id="toggleChart">
+                        <i class="fas fa-chart-line"></i> Gerar Gráfico
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button class="btn btn-outline-info btn-sm w-100" id="generatePrecipitationChart">
+                        <i class="fas fa-cloud-rain"></i> Gráfico de Precipitação
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- Modal do Gráfico -->
+    <div class="chart-modal" id="chartModal">
+        <div class="chart-header">
+            <h6><i class="fas fa-chart-line"></i> Séries Temporais</h6>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-light" id="exportTimeSeriesCSV">
+                    <i class="fas fa-download"></i> CSV
+                </button>
+                <button class="btn btn-sm btn-outline-light" id="closeChart">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="chart-content">
+            <canvas id="timeSeriesChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Modal do Gráfico de Precipitação -->
+    <div class="chart-modal" id="precipitationModal">
+        <div class="chart-header">
+            <h6><i class="fas fa-cloud-rain"></i> Precipitação Diária</h6>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-light" id="exportPrecipitationCSV">
+                    <i class="fas fa-download"></i> CSV
+                </button>
+                <button class="btn btn-sm btn-outline-light" id="closePrecipitationChart">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="chart-content">
+            <canvas id="precipitationChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Modal para Salvar ROI -->
+    <div class="chart-modal" id="addROIModal">
+        <div class="chart-header">
+            <h6><i class="fas fa-save"></i> Salvar ROI</h6>
+            <button class="btn btn-sm btn-outline-light" onclick="hideAddROIModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="chart-content">
+            <div class="form-group">
+                <label class="form-label">Nome da ROI</label>
+                <input type="text" class="form-control" id="roiName" placeholder="Digite um nome para a ROI">
+                <small class="text-muted">Este nome será usado para identificar a ROI salva</small>
+            </div>
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="saveCurrentROI()">
+                    <i class="fas fa-save"></i> Salvar ROI
+                </button>
+                <button class="btn btn-outline-secondary" onclick="hideAddROIModal()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Visualizar Dados dos Pontos -->
+    <div class="chart-modal" id="pointDataModal">
+        <div class="chart-header">
+            <h6><i class="fas fa-table"></i> Dados dos Pontos da Malha Amostral</h6>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-light" id="exportPointDataCSV">
+                    <i class="fas fa-download"></i> CSV
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="hidePointDataModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="chart-content">
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-striped table-sm">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th>ID</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>NDVI Médio</th>
+                            <th>EVI Médio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pointDataTableBody">
+                        <!-- Dados serão inseridos aqui dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overlay de fundo para disclaimer -->
+    <div class="disclaimer-overlay" id="disclaimerOverlay"></div>
+    
+    <!-- Modal de Disclaimer (Aparece automaticamente) -->
+    <div class="chart-modal" id="disclaimerModal">
+        <div class="chart-header">
+            <h6><i class="fas fa-exclamation-triangle text-warning"></i> Disclaimer e Termos de Uso</h6>
+        </div>
+        <div class="chart-content" style="overflow-y: auto;">
+            <div class="mb-4">
+                <h5><i class="fas fa-satellite"></i> Análise de Dados de Sensoriamento Remoto</h5>
+                <p class="text-muted">Esta aplicação utiliza o Google Earth Engine para análise de dados de sensoriamento remoto, permitindo o processamento e visualização de informações geoespaciais em tempo real.</p>
+            </div>
+            
+            <div class="mb-4">
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> Disclaimer Importante</h6>
+                <div class="alert alert-warning">
+                    <small>
+                        <strong>Importante:</strong> Esta aplicação é destinada para fins educacionais e de pesquisa. 
+                        Os dados fornecidos são processados em tempo real através do Google Earth Engine e podem 
+                        estar sujeitos a limitações de disponibilidade e precisão. Os usuários são responsáveis 
+                        por validar os resultados para suas aplicações específicas. O uso comercial ou profissional 
+                        deve ser acompanhado de verificação independente dos dados.
+                    </small>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h6><i class="fas fa-leaf"></i> Funcionalidades Disponíveis</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Análise de Índices de Vegetação (NDVI e EVI)</li>
+                    <li><i class="fas fa-check text-success"></i> Visualização RGB para análise visual</li>
+                    <li><i class="fas fa-check text-success"></i> Dados de Precipitação (CHIRPS)</li>
+                    <li><i class="fas fa-check text-success"></i> Múltiplas ROIs com gerenciamento</li>
+                    <li><i class="fas fa-check text-success"></i> Exportação de dados em CSV</li>
+                    <li><i class="fas fa-check text-success"></i> Download de imagens TIFF</li>
+                </ul>
+            </div>
+            
+            <div class="text-center">
+                <hr>
+                <p class="mb-2">
+                    <strong>Desenvolvido por:</strong><br>
+                    <a href="https://www.linkedin.com/in/christhian-santana-cunha/" target="_blank" class="text-decoration-none">
+                        <i class="fab fa-linkedin text-primary"></i> Christhian Santana Cunha
+                    </a>
+                </p>
+                <small class="text-muted">
+                    Especialista em Sensoriamento Remoto e Análise Geoespacial<br>
+                    <i class="fas fa-envelope"></i> Contato: <a href="mailto:christhianscunha@gmail.com">christhianscunha@gmail.com</a>
+                </small>
+            </div>
+            
+            <div class="mt-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="dontShowAgain">
+                    <label class="form-check-label" for="dontShowAgain">
+                        Não mostrar este disclaimer novamente
+                    </label>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 mt-3">
+                <button class="btn btn-primary" onclick="acceptDisclaimer()">
+                    <i class="fas fa-check"></i> Aceitar e Continuar
+                </button>
+                <button class="btn btn-outline-secondary" onclick="showFullInfo()">
+                    <i class="fas fa-info-circle"></i> Ver Informações Completas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Informações -->
+    <div class="chart-modal" id="infoModal" style="width: 700px; height: 600px;">
+        <div class="chart-header">
+            <h6><i class="fas fa-info-circle"></i> Sobre a Aplicação</h6>
+            <button class="btn btn-sm btn-outline-light" onclick="hideInfoModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="chart-content" style="overflow-y: auto;">
+            <div class="mb-4">
+                <h5><i class="fas fa-satellite"></i> Análise de Dados de Sensoriamento Remoto</h5>
+                <p class="text-muted">Esta aplicação utiliza o Google Earth Engine para análise de dados de sensoriamento remoto, permitindo o processamento e visualização de informações geoespaciais em tempo real.</p>
+            </div>
+            
+            <div class="mb-4">
+                <h6><i class="fas fa-leaf"></i> Funcionalidades Principais</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> <strong>Análise de Índices de Vegetação:</strong> NDVI e EVI para monitoramento da vegetação</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Visualização RGB:</strong> Composições coloridas para análise visual</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Dados de Precipitação:</strong> Análise temporal com dados CHIRPS</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Múltiplas ROIs:</strong> Gerenciamento de várias regiões de interesse</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Exportação de Dados:</strong> Download em formato CSV</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Download de Imagens:</strong> Arquivos TIFF para análise offline</li>
+                </ul>
+            </div>
+            
+            <div class="mb-4">
+                <h6><i class="fas fa-database"></i> Fontes de Dados</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-satellite text-primary"></i> <strong>Sentinel-2:</strong> Imagens ópticas de alta resolução (10-20m)</li>
+                    <li><i class="fas fa-cloud-rain text-info"></i> <strong>CHIRPS:</strong> Dados de precipitação com resolução de 5.5km</li>
+                    <li><i class="fas fa-globe text-success"></i> <strong>Google Earth Engine:</strong> Plataforma de processamento em nuvem</li>
+                </ul>
+            </div>
+            
+            <div class="mb-4">
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> Disclaimer</h6>
+                <div class="alert alert-warning">
+                    <small>
+                        <strong>Importante:</strong> Esta aplicação é destinada para fins educacionais e de pesquisa. 
+                        Os dados fornecidos são processados em tempo real através do Google Earth Engine e podem 
+                        estar sujeitos a limitações de disponibilidade e precisão. Os usuários são responsáveis 
+                        por validar os resultados para suas aplicações específicas. O uso comercial ou profissional 
+                        deve ser acompanhado de verificação independente dos dados.
+                    </small>
+                </div>
+            </div>
+            
+            
+            <div class="text-center">
+                <hr>
+                <p class="mb-2">
+                    <strong>Desenvolvido por:</strong><br>
+                    <a href="https://www.linkedin.com/in/christhian-santana-cunha/" target="_blank" class="text-decoration-none">
+                        <i class="fab fa-linkedin text-primary"></i> Christhian Santana Cunha
+                    </a>
+                </p>
+                <small class="text-muted">
+                    Especialista em Sensoriamento Remoto e Análise Geoespacial<br>
+                    <i class="fas fa-envelope"></i> Contato: <a href="mailto:christhianscunha@gmail.com">christhianscunha@gmail.com</a>
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>

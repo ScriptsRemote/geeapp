@@ -1,0 +1,17 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Área de Teste",
+    "description": "Exemplo de ROI para teste"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-60.0, -10.0],
+      [-59.5, -10.0],
+      [-59.5, -9.5],
+      [-60.0, -9.5],
+      [-60.0, -10.0]
+    ]]
+  }
+}
