@@ -21,7 +21,7 @@ export async function authenticateEE() {
         null,
         null,
         () => {
-          console.log("Earth Engine inicializado com sucesso, use");
+          console.log("Earth Engine inicializado com sucesso");
         },
         (err) => {
           console.error("Erro ao inicializar Earth Engine:", err);
